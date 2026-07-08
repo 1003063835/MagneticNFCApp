@@ -10,3 +10,7 @@
 local.properties
 /app/build
 /app/release
+
+# Allow gradle wrapper files (overrides workspace *.jar and **/android/gradlew rules)
+!gradle/wrapper/gradle-wrapper.jar
+!gradlew
