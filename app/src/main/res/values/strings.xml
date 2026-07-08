@@ -1,0 +1,37 @@
+<resources>
+    <string name="app_name">磁力 NFC 探测器</string>
+    <string name="magnetic_sensor">磁场传感器</string>
+    <string name="sensor_ready">传感器就绪</string>
+    <string name="sensor_unavailable">设备不支持磁场传感器</string>
+    <string name="last_update">最后更新: %s</string>
+    <string name="last_update_default">最后更新: --:--:--</string>
+
+    <string name="axis_x">X 轴</string>
+    <string name="axis_y">Y 轴</string>
+    <string name="axis_z">Z 轴</string>
+
+    <string name="mag_x_value">%.2f μT</string>
+    <string name="mag_y_value">%.2f μT</string>
+    <string name="mag_z_value">%.2f μT</string>
+    <string name="mag_total_value">%.2f μT</string>
+
+    <string name="total_strength">总强度</string>
+    <string name="strength_very_weak">极弱 (环境磁场)</string>
+    <string name="strength_weak">较弱</string>
+    <string name="strength_normal">正常 (地磁场)</string>
+    <string name="strength_strong">较强 (接近磁铁)</string>
+    <string name="strength_very_strong">极强 (紧贴磁铁)</string>
+
+    <string name="nfc_status">NFC 状态</string>
+    <string name="nfc_initializing">正在初始化…</string>
+    <string name="nfc_ready">就绪 - 等待 NFC 标签</string>
+    <string name="nfc_unavailable">设备不支持 NFC</string>
+    <string name="nfc_disabled">NFC 已关闭，请开启</string>
+    <string name="nfc_hint">将 NFC 标签靠近设备背部即可自动唤醒 App 并读取标签信息</string>
+
+    <string name="nfc_tag_detected">检测到 NFC 标签</string>
+    <string name="nfc_tag_id">标签 ID: %s</string>
+    <string name="nfc_tag_tech">技术支持: %s</string>
+    <string name="nfc_payload">内容: %s</string>
+    <string name="nfc_no_payload">无 NDEF 数据</string>
+</resources>
