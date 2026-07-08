@@ -173,7 +173,7 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
 
         when {
             tnf == NdefRecord.TNF_WELL_KNOWN &&
-                type.contentEquals(NdefRecord.RTD_TEXT) &&
+                record.type.contentEquals(NdefRecord.RTD_TEXT) &&
                 payload.size > 3 -> {
                 val langLen = payload[0].toInt() and 0x3F
                 val text = String(payload, langLen + 1, payload.size - langLen - 1, Charsets.UTF_8)
@@ -181,7 +181,7 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
             }
 
             tnf == NdefRecord.TNF_WELL_KNOWN &&
-                type.contentEquals(NdefRecord.RTD_URI) &&
+                record.type.contentEquals(NdefRecord.RTD_URI) &&
                 payload.size > 1 -> {
                 val prefix = uriPrefix(payload[0].toInt() and 0xFF)
                 val uri = String(payload, 1, payload.size - 1, Charsets.UTF_8)
@@ -196,7 +196,7 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
             }
 
             tnf == NdefRecord.TNF_WELL_KNOWN &&
-                type.contentEquals(NdefRecord.RTD_SMART_POSTER) -> {
+                record.type.contentEquals(NdefRecord.RTD_SMART_POSTER) -> {
                 sb.appendLine("  Smart Poster (nested)")
                 try {
                     val nestedMsg = NdefMessage(payload)
@@ -283,7 +283,7 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
         }
     }
 
-    private fun tnfName(tnf: Short): String = when (tnf.toInt()) {
+    private fun tnfName(tnf: Short): String = when (tnf) {
         NdefRecord.TNF_EMPTY -> "EMPTY"
         NdefRecord.TNF_WELL_KNOWN -> "RTD"
         NdefRecord.TNF_MIME_MEDIA -> "MIME"
