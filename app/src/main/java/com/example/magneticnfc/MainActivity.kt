@@ -1,10 +1,20 @@
 package com.example.magneticnfc
 
 import android.annotation.SuppressLint
+import android.app.PendingIntent
 import android.content.Intent
 import android.nfc.NdefMessage
+import android.nfc.NdefRecord
 import android.nfc.NfcAdapter
 import android.nfc.Tag
+import android.nfc.tech.MifareClassic
+import android.nfc.tech.MifareUltralight
+import android.nfc.tech.Ndef
+import android.nfc.tech.NfcA
+import android.nfc.tech.NfcB
+import android.nfc.tech.NfcF
+import android.nfc.tech.NfcV
+import android.os.Build
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
@@ -14,12 +24,21 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var viewModel: SensorViewModel
     private var nfcAdapter: NfcAdapter? = null
     private val dateFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+
+    companion object {
+        private val READER_FLAGS =
+            NfcAdapter.FLAG_READER_NFC_A or
+            NfcAdapter.FLAG_READER_NFC_B or
+            NfcAdapter.FLAG_READER_NFC_F or
+            NfcAdapter.FLAG_READER_NFC_V or
+            NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK
+    }
 
     @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,9 +50,8 @@ class MainActivity : AppCompatActivity() {
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
 
         setupSensorObserver()
-        setupNfc()
+        setupNfcStatus()
         viewModel.startSensor(this)
-        handleNfcIntent(intent)
     }
 
     private fun setupSensorObserver() {
@@ -70,12 +88,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupNfc() {
+    @SuppressLint("SetTextI18n")
+    private fun setupNfcStatus() {
         if (nfcAdapter == null) {
             binding.tvNfcStatus.text = getString(R.string.nfc_unavailable)
             return
         }
-
         if (!nfcAdapter!!.isEnabled) {
             binding.tvNfcStatus.text = getString(R.string.nfc_disabled)
         } else {
@@ -83,68 +101,241 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    @SuppressLint("SetTextI18n")
-    private fun handleNfcIntent(intent: Intent?) {
-        if (intent == null) return
-
-        val action = intent.action
-        if (action != NfcAdapter.ACTION_NDEF_DISCOVERED
-            && action != NfcAdapter.ACTION_TECH_DISCOVERED
-            && action != NfcAdapter.ACTION_TAG_DISCOVERED
-        ) return
-
-        val tag: Tag? = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG)
-        if (tag == null) return
-
-        val tagId = tag.id.joinToString("") { "%02X".format(it) }
-        val techList = tag.techList?.joinToString(", ") { it.substringAfterLast(".") } ?: ""
-
-        val ndefMessage = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES)
-        val sb = StringBuilder()
-        sb.appendLine(getString(R.string.nfc_tag_detected))
-        sb.appendLine(getString(R.string.nfc_tag_id, tagId))
-        sb.appendLine(getString(R.string.nfc_tag_tech, techList))
-
-        if (ndefMessage != null && ndefMessage.isNotEmpty()) {
-            val ndef = ndefMessage[0] as NdefMessage
-            for (record in ndef.records) {
-                val payload = record.payload
-                val text = String(payload, 3, payload.size - 3, Charset.forName("UTF-8"))
-                sb.appendLine(getString(R.string.nfc_payload, text))
-            }
-        } else {
-            sb.appendLine(getString(R.string.nfc_no_payload))
-        }
-
-        viewModel.onNfcTagScanned(sb.toString())
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        handleNfcIntent(intent)
-    }
+    // ---- Reader Mode: 前台直接读标签，无系统弹窗 ----
 
     override fun onResume() {
         super.onResume()
-        nfcAdapter?.enableForegroundDispatch(
-            this,
-            android.app.PendingIntent.getActivity(
-                this, 0,
-                Intent(this, javaClass).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
-                android.app.PendingIntent.FLAG_IMMUTABLE
-            ),
-            null,
-            null
-        )
+        setupNfcStatus()
+        nfcAdapter?.let { adapter ->
+            if (adapter.isEnabled) {
+                val options = Bundle()
+                options.putInt(NfcAdapter.EXTRA_READER_PRESENCE_CHECK_DELAY, 5000)
+                adapter.enableReaderMode(this, this, READER_FLAGS, options)
+                binding.tvNfcStatus.text = getString(R.string.nfc_ready)
+            }
+        }
     }
 
     override fun onPause() {
         super.onPause()
-        nfcAdapter?.disableForegroundDispatch(this)
+        nfcAdapter?.disableReaderMode(this)
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        viewModel.stopSensor()
+    override fun onTagDiscovered(tag: Tag) {
+        val sb = StringBuilder()
+        sb.appendLine("==== NFC TAG DETECTED ====")
+
+        val tagId = tag.id.joinToString("") { "%02X".format(it) }
+        sb.appendLine("ID:   $tagId")
+
+        val techList = tag.techList?.joinToString(", ") {
+            it.substringAfterLast(".")
+        } ?: ""
+        sb.appendLine("Tech: $techList")
+
+        readNdef(tag, sb)
+        readMifareClassic(tag, sb)
+        readMifareUltralight(tag, sb)
+        readGenericInfo(tag, sb)
+
+        sb.appendLine("==========================")
+        runOnUiThread {
+            viewModel.onNfcTagScanned(sb.toString())
+        }
+    }
+
+    private fun readNdef(tag: Tag, sb: StringBuilder) {
+        try {
+            val ndef = Ndef.get(tag) ?: return
+            ndef.connect()
+            sb.appendLine("NDEF: ${if (ndef.isWritable) "Writable" else "Read-only"}")
+            sb.appendLine("MaxSize: ${ndef.maxSize} bytes")
+
+            val msg = ndef.ndefMessage ?: ndef.cachedNdefMessage
+            if (msg != null) {
+                for ((idx, record) in msg.records.withIndex()) {
+                    parseRecord(idx, record, sb)
+                }
+            } else {
+                sb.appendLine("(no NDEF message)")
+            }
+            ndef.close()
+        } catch (_: Exception) {}
+    }
+
+    private fun parseRecord(idx: Int, record: NdefRecord, sb: StringBuilder) {
+        val tnf = record.tnf
+        val type = String(record.type, Charsets.UTF_8)
+        val payload = record.payload
+
+        sb.append("  Record#$idx TNF=")
+        sb.appendLine(tnfName(tnf))
+
+        when {
+            tnf == NdefRecord.TNF_WELL_KNOWN &&
+                type.contentEquals(NdefRecord.RTD_TEXT) &&
+                payload.size > 3 -> {
+                val langLen = payload[0].toInt() and 0x3F
+                val text = String(payload, langLen + 1, payload.size - langLen - 1, Charsets.UTF_8)
+                sb.appendLine("  Text: $text")
+            }
+
+            tnf == NdefRecord.TNF_WELL_KNOWN &&
+                type.contentEquals(NdefRecord.RTD_URI) &&
+                payload.size > 1 -> {
+                val prefix = uriPrefix(payload[0].toInt() and 0xFF)
+                val uri = String(payload, 1, payload.size - 1, Charsets.UTF_8)
+                sb.appendLine("  URI:  $prefix$uri")
+            }
+
+            tnf == NdefRecord.TNF_EXTERNAL_TYPE &&
+                type.contentEquals("android.com:pkg") -> {
+                val pkg = String(payload, Charsets.UTF_8)
+                sb.appendLine("  AAR:  $pkg" +
+                    if (pkg == packageName) " (this app)" else " (other)")
+            }
+
+            tnf == NdefRecord.TNF_WELL_KNOWN &&
+                type.contentEquals(NdefRecord.RTD_SMART_POSTER) -> {
+                sb.appendLine("  Smart Poster (nested)")
+                try {
+                    val nestedMsg = NdefMessage(payload)
+                    for ((ni, nr) in nestedMsg.records.withIndex()) {
+                        parseRecord(ni, nr, sb)
+                    }
+                } catch (_: Exception) {
+                    sb.appendLine("    [parse failed]")
+                }
+            }
+
+            else -> {
+                sb.append("  Type: $type")
+                if (payload.isNotEmpty()) {
+                    sb.appendLine("")
+                    sb.appendLine("  Payload (${payload.size}B): ${payload.toHex(64)}")
+                } else {
+                    sb.appendLine("")
+                }
+            }
+        }
+    }
+
+    private fun readMifareClassic(tag: Tag, sb: StringBuilder) {
+        try {
+            val mfc = MifareClassic.get(tag) ?: return
+            mfc.connect()
+            sb.appendLine("MifareClassic:")
+            sb.appendLine("  Type:   ${if (mfc.type == MifareClassic.TYPE_CLASSIC) "Classic" else "Plus"}")
+            sb.appendLine("  Size:   ${mfc.size} bytes")
+            sb.appendLine("  Sectors: ${mfc.sectorCount}")
+            sb.appendLine("  Blocks:  ${mfc.blockCount}")
+            mfc.close()
+        } catch (_: Exception) {}
+    }
+
+    private fun readMifareUltralight(tag: Tag, sb: StringBuilder) {
+        try {
+            val mfu = MifareUltralight.get(tag) ?: return
+            mfu.connect()
+            sb.appendLine("MifareUltralight:")
+            sb.appendLine("  Type:  ${mfu.type}")
+            mfu.close()
+        } catch (_: Exception) {}
+    }
+
+    private fun readGenericInfo(tag: Tag, sb: StringBuilder) {
+        for (techName in tag.techList.orEmpty()) {
+            try {
+                when (techName) {
+                    "android.nfc.tech.NfcA" -> {
+                        val nfca = NfcA.get(tag)
+                        nfca?.connect()
+                        val sak = nfca?.sak?.let { "0x%02X".format(it) } ?: "?"
+                        val atqa = nfca?.atqa?.let {
+                            it.joinToString("") { b -> "%02X".format(b) }
+                        } ?: "?"
+                        sb.appendLine("NfcA:   SAK=$sak  ATQA=$atqa")
+                        nfca?.close()
+                    }
+                    "android.nfc.tech.NfcB" -> {
+                        NfcB.get(tag)?.let { nfcb ->
+                            nfcb.connect()
+                            sb.appendLine("NfcB:   detected")
+                            nfcb.close()
+                        }
+                    }
+                    "android.nfc.tech.NfcF" -> {
+                        NfcF.get(tag)?.let { nfcf ->
+                            nfcf.connect()
+                            sb.appendLine("NfcF:   detected")
+                            nfcf.close()
+                        }
+                    }
+                    "android.nfc.tech.NfcV" -> {
+                        NfcV.get(tag)?.let { nfcv ->
+                            nfcv.connect()
+                            sb.appendLine("NfcV:   detected")
+                            nfcv.close()
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun tnfName(tnf: Short): String = when (tnf.toInt()) {
+        NdefRecord.TNF_EMPTY -> "EMPTY"
+        NdefRecord.TNF_WELL_KNOWN -> "RTD"
+        NdefRecord.TNF_MIME_MEDIA -> "MIME"
+        NdefRecord.TNF_ABSOLUTE_URI -> "URI"
+        NdefRecord.TNF_EXTERNAL_TYPE -> "EXT"
+        NdefRecord.TNF_UNKNOWN -> "UNKNOWN"
+        NdefRecord.TNF_UNCHANGED -> "UNCHANGED"
+        else -> "?($tnf)"
+    }
+
+    private fun uriPrefix(code: Int): String = when (code) {
+        0x00 -> ""
+        0x01 -> "http://www."
+        0x02 -> "https://www."
+        0x03 -> "http://"
+        0x04 -> "https://"
+        0x05 -> "tel:"
+        0x06 -> "mailto:"
+        0x07 -> "ftp://"
+        0x08 -> "ftps://"
+        0x09 -> "sftp://"
+        0x0A -> "smb://"
+        0x0B -> "nfs://"
+        0x0C -> "ftp://ftp."
+        0x0D -> "dav://"
+        0x0E -> "news:"
+        0x0F -> "telnet://"
+        0x10 -> "imap:"
+        0x11 -> "rtsp://"
+        0x12 -> "urn:"
+        0x13 -> "pop:"
+        0x14 -> "sip:"
+        0x15 -> "sips:"
+        0x16 -> "tftp:"
+        0x17 -> "btspp://"
+        0x18 -> "btl2cap://"
+        0x19 -> "btgoep://"
+        0x1A -> "tcpobex://"
+        0x1B -> "irdaobex://"
+        0x1C -> "file://"
+        0x1D -> "urn:epc:id:"
+        0x1E -> "urn:epc:tag:"
+        0x1F -> "urn:epc:pat:"
+        0x20 -> "urn:epc:raw:"
+        0x21 -> "urn:epc:"
+        0x22 -> "urn:nfc:"
+        else -> "?"
+    }
+
+    private fun ByteArray.toHex(maxBytes: Int = this.size): String {
+        val len = minOf(size, maxBytes)
+        val hex = take(len).joinToString(" ") { "%02X".format(it) }
+        return if (size > maxBytes) "$hex ..." else hex
     }
 }

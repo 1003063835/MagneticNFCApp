@@ -27,7 +27,7 @@
     <string name="nfc_ready">就绪 - 等待 NFC 标签</string>
     <string name="nfc_unavailable">设备不支持 NFC</string>
     <string name="nfc_disabled">NFC 已关闭，请开启</string>
-    <string name="nfc_hint">将 NFC 标签靠近设备背部即可自动唤醒 App 并读取标签信息</string>
+    <string name="nfc_hint">将 NFC 标签靠近设备背部即可自动唤醒 App 并读取标签信息&#10;&#10;如需可靠唤醒: 向标签写入 AAR (Android Application Record)</string>
 
     <string name="nfc_tag_detected">检测到 NFC 标签</string>
     <string name="nfc_tag_id">标签 ID: %s</string>
