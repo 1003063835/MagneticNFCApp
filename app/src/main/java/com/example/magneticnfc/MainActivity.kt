@@ -432,6 +432,7 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
     }
 
     private fun onWriteSuccess() {
+        isWritingMode = false
         val vibrator = getSystemService(Vibrator::class.java)
         vibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
 
@@ -448,6 +449,7 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
     }
 
     private fun onWriteFailed(reason: String) {
+        isWritingMode = false
         runOnUiThread {
             writeTimeoutHandler.removeCallbacks(writeTimeoutRunnable)
             binding.btnWriteAar.text = getString(R.string.write_aar_btn)
@@ -456,7 +458,7 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
             binding.tvWriteStatus.setTextColor(Color.parseColor("#F44336"))
             Handler(Looper.getMainLooper()).postDelayed({
                 binding.tvWriteStatus.visibility = View.GONE
-            }, 4000)
+            }, 6000)
         }
     }
 }
