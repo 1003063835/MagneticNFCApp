@@ -3,6 +3,8 @@ package com.example.magneticnfc
 import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Intent
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.nfc.NdefMessage
 import android.nfc.NdefRecord
 import android.nfc.NfcAdapter
@@ -10,12 +12,18 @@ import android.nfc.Tag
 import android.nfc.tech.MifareClassic
 import android.nfc.tech.MifareUltralight
 import android.nfc.tech.Ndef
+import android.nfc.tech.NdefFormatable
 import android.nfc.tech.NfcA
 import android.nfc.tech.NfcB
 import android.nfc.tech.NfcF
 import android.nfc.tech.NfcV
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import com.example.magneticnfc.databinding.ActivityMainBinding
@@ -30,6 +38,17 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
     private lateinit var viewModel: SensorViewModel
     private var nfcAdapter: NfcAdapter? = null
     private val dateFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+    private var isWritingMode = false
+    private val writeTimeoutHandler = Handler(Looper.getMainLooper())
+    private val writeTimeoutRunnable = Runnable {
+        isWritingMode = false
+        runOnUiThread {
+            binding.btnWriteAar.text = getString(R.string.write_aar_btn)
+            binding.btnWriteAar.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#03A9F4"))
+            binding.tvWriteStatus.text = getString(R.string.write_aar_timeout)
+            binding.tvWriteStatus.setTextColor(Color.parseColor("#F44336"))
+        }
+    }
 
     companion object {
         private val READER_FLAGS =
@@ -51,6 +70,7 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
 
         setupSensorObserver()
         setupNfcStatus()
+        setupWriteButton()
         viewModel.startSensor(this)
     }
 
@@ -122,6 +142,11 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
     }
 
     override fun onTagDiscovered(tag: Tag) {
+        if (isWritingMode) {
+            writeAarToTag(tag)
+            return
+        }
+
         val sb = StringBuilder()
         sb.appendLine("==== NFC TAG DETECTED ====")
 
@@ -337,5 +362,101 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
         val len = minOf(size, maxBytes)
         val hex = take(len).joinToString(" ") { "%02X".format(it) }
         return if (size > maxBytes) "$hex ..." else hex
+    }
+
+    private fun setupWriteButton() {
+        binding.btnWriteAar.setOnClickListener {
+            if (isWritingMode) {
+                cancelWriteMode()
+            } else {
+                enterWriteMode()
+            }
+        }
+    }
+
+    private fun enterWriteMode() {
+        isWritingMode = true
+        binding.btnWriteAar.text = getString(R.string.write_aar_cancel)
+        binding.btnWriteAar.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FF5722"))
+        binding.tvWriteStatus.text = getString(R.string.write_aar_waiting)
+        binding.tvWriteStatus.setTextColor(Color.parseColor("#FFC107"))
+        binding.tvWriteStatus.visibility = View.VISIBLE
+        writeTimeoutHandler.postDelayed(writeTimeoutRunnable, 30_000)
+    }
+
+    private fun cancelWriteMode() {
+        isWritingMode = false
+        writeTimeoutHandler.removeCallbacks(writeTimeoutRunnable)
+        binding.btnWriteAar.text = getString(R.string.write_aar_btn)
+        binding.btnWriteAar.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#03A9F4"))
+        binding.tvWriteStatus.visibility = View.GONE
+    }
+
+    private fun writeAarToTag(tag: Tag) {
+        val aarRecord = NdefRecord.createApplicationRecord(packageName)
+        val textBytes = "\u78C1\u529B NFC \u63A2\u6D4B\u5668".toByteArray(Charsets.UTF_8)
+        val langBytes = "zh".toByteArray(Charsets.US_ASCII)
+        val textPayload = ByteArray(1 + langBytes.size + textBytes.size)
+        textPayload[0] = langBytes.size.toByte()
+        System.arraycopy(langBytes, 0, textPayload, 1, langBytes.size)
+        System.arraycopy(textBytes, 0, textPayload, 1 + langBytes.size, textBytes.size)
+        val textRecord = NdefRecord(NdefRecord.TNF_WELL_KNOWN, NdefRecord.RTD_TEXT, ByteArray(0), textPayload)
+        val ndefMessage = NdefMessage(arrayOf(aarRecord, textRecord))
+
+        try {
+            val ndef = Ndef.get(tag)
+            if (ndef != null) {
+                ndef.connect()
+                if (ndef.isWritable) {
+                    ndef.writeNdefMessage(ndefMessage)
+                    ndef.close()
+                    onWriteSuccess()
+                } else {
+                    ndef.close()
+                    onWriteFailed(getString(R.string.write_aar_failed_not_ndef))
+                }
+            } else {
+                val formatable = NdefFormatable.get(tag)
+                if (formatable != null) {
+                    formatable.connect()
+                    formatable.format(ndefMessage)
+                    formatable.close()
+                    onWriteSuccess()
+                } else {
+                    onWriteFailed(getString(R.string.write_aar_failed_not_ndef))
+                }
+            }
+        } catch (e: Exception) {
+            onWriteFailed(getString(R.string.write_aar_failed_error, e.message ?: ""))
+        }
+    }
+
+    private fun onWriteSuccess() {
+        val vibrator = getSystemService(Vibrator::class.java)
+        vibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
+
+        runOnUiThread {
+            writeTimeoutHandler.removeCallbacks(writeTimeoutRunnable)
+            binding.btnWriteAar.text = getString(R.string.write_aar_btn)
+            binding.btnWriteAar.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#03A9F4"))
+            binding.tvWriteStatus.text = getString(R.string.write_aar_success)
+            binding.tvWriteStatus.setTextColor(Color.parseColor("#4CAF50"))
+            Handler(Looper.getMainLooper()).postDelayed({
+                binding.tvWriteStatus.visibility = View.GONE
+            }, 4000)
+        }
+    }
+
+    private fun onWriteFailed(reason: String) {
+        runOnUiThread {
+            writeTimeoutHandler.removeCallbacks(writeTimeoutRunnable)
+            binding.btnWriteAar.text = getString(R.string.write_aar_btn)
+            binding.btnWriteAar.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#03A9F4"))
+            binding.tvWriteStatus.text = reason
+            binding.tvWriteStatus.setTextColor(Color.parseColor("#F44336"))
+            Handler(Looper.getMainLooper()).postDelayed({
+                binding.tvWriteStatus.visibility = View.GONE
+            }, 4000)
+        }
     }
 }

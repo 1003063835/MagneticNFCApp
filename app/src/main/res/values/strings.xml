@@ -34,4 +34,12 @@
     <string name="nfc_tag_tech">技术支持: %s</string>
     <string name="nfc_payload">内容: %s</string>
     <string name="nfc_no_payload">无 NDEF 数据</string>
+
+    <string name="write_aar_btn">写入 AAR 到标签</string>
+    <string name="write_aar_waiting">请将 NFC 标签靠近设备背部以写入…</string>
+    <string name="write_aar_success">写入成功！现在碰一碰即可唤醒 App</string>
+    <string name="write_aar_failed_not_ndef">写入失败：标签不支持 NDEF 格式</string>
+    <string name="write_aar_failed_error">写入失败：%s</string>
+    <string name="write_aar_timeout">写入超时，请重试</string>
+    <string name="write_aar_cancel">取消写入</string>
 </resources>

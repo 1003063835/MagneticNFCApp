@@ -230,6 +230,26 @@
                     android:textSize="13sp" />
             </LinearLayout>
 
+            <Button
+                android:id="@+id/btnWriteAar"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="@string/write_aar_btn"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:backgroundTint="#03A9F4"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:id="@+id/tvWriteStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textColor="#FFC107"
+                android:textSize="13sp"
+                android:gravity="center"
+                android:visibility="gone" />
+
             <ScrollView
                 android:layout_width="match_parent"
                 android:layout_height="280dp"
