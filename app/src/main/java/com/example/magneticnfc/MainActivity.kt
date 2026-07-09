@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.nfc.NdefMessage
 import android.nfc.NdefRecord
 import android.nfc.NfcAdapter
@@ -24,6 +25,7 @@ import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.view.View
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import com.example.magneticnfc.databinding.ActivityMainBinding
@@ -49,6 +51,8 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
             binding.tvWriteStatus.setTextColor(Color.parseColor("#F44336"))
         }
     }
+    private var selectedPosition = -1
+    private lateinit var positionViews: Array<TextView>
 
     companion object {
         private val READER_FLAGS =
@@ -71,6 +75,7 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
         setupSensorObserver()
         setupNfcStatus()
         setupWriteButton()
+        setupWheelCalibration()
         viewModel.startSensor(this)
     }
 
@@ -459,6 +464,82 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
             Handler(Looper.getMainLooper()).postDelayed({
                 binding.tvWriteStatus.visibility = View.GONE
             }, 6000)
+        }
+    }
+
+    private fun setupWheelCalibration() {
+        positionViews = arrayOf(
+            binding.tvPos0, binding.tvPos1, binding.tvPos2, binding.tvPos3, binding.tvPos4,
+            binding.tvPos5, binding.tvPos6, binding.tvPos7, binding.tvPos8, binding.tvPos9
+        )
+
+        for (i in 0..9) {
+            positionViews[i].setOnClickListener { selectPosition(i) }
+        }
+
+        binding.btnCalibrate.setOnClickListener {
+            val data = viewModel.magneticData.value ?: return@setOnClickListener
+            if (selectedPosition in 0..9) {
+                viewModel.calibrate(selectedPosition, data)
+            }
+        }
+
+        binding.btnClearCalibration.setOnClickListener {
+            viewModel.clearCalibration()
+            updatePositionStyles()
+        }
+
+        viewModel.calibratedPositions.observe(this) { positions ->
+            binding.tvCalibratedCount.text = getString(R.string.calibrated_count, positions.size)
+            updatePositionStyles()
+        }
+
+        viewModel.recognizedPosition.observe(this) { result ->
+            if (result != null) {
+                binding.tvRecognizedResult.text = getString(
+                    R.string.recognized_position, result.position, result.distance
+                )
+                binding.tvRecognizedResult.setTextColor(Color.parseColor("#00BCD4"))
+            } else {
+                binding.tvRecognizedResult.text = getString(R.string.recognized_no_data)
+                binding.tvRecognizedResult.setTextColor(Color.parseColor("#9E9E9E"))
+            }
+        }
+
+        updatePositionStyles()
+    }
+
+    private fun selectPosition(position: Int) {
+        selectedPosition = position
+        updatePositionStyles()
+    }
+
+    private fun updatePositionStyles() {
+        val calibrated = viewModel.calibratedPositions.value ?: emptySet()
+        for (i in 0..9) {
+            val bg = positionViews[i].background as GradientDrawable
+            when {
+                i == selectedPosition && i in calibrated -> {
+                    bg.setStroke(3, Color.parseColor("#E91E63"))
+                    bg.setColor(Color.parseColor("#2E1A3A"))
+                    positionViews[i].setTextColor(Color.parseColor("#E91E63"))
+                }
+                i == selectedPosition -> {
+                    bg.setStroke(3, Color.parseColor("#E91E63"))
+                    bg.setColor(Color.parseColor("#3A1A2E"))
+                    positionViews[i].setTextColor(Color.parseColor("#E91E63"))
+                }
+                i in calibrated -> {
+                    bg.setStroke(2, Color.parseColor("#4CAF50"))
+                    bg.setColor(Color.parseColor("#1A3A2E"))
+                    positionViews[i].setTextColor(Color.parseColor("#4CAF50"))
+                }
+                else -> {
+                    bg.setStroke(1, Color.parseColor("#444466"))
+                    bg.setColor(Color.parseColor("#222236"))
+                    positionViews[i].setTextColor(Color.parseColor("#B0BEC5"))
+                }
+            }
         }
     }
 }

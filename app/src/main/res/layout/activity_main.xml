@@ -197,6 +197,128 @@
             android:background="#333344"
             android:layout_marginVertical="16dp" />
 
+        <!-- Wheel Calibration Section -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_background"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/wheel_calibration"
+                android:textColor="#E91E63"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:paddingBottom="12dp" />
+
+            <TextView
+                android:id="@+id/tvCalibratedCount"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/calibrated_count"
+                android:textColor="#9E9E9E"
+                android:textSize="13sp"
+                android:paddingBottom="12dp" />
+
+            <LinearLayout
+                android:id="@+id/layoutPositionRow1"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:orientation="horizontal"
+                android:weightSum="5"
+                android:layout_marginBottom="6dp">
+
+                <TextView android:id="@+id/tvPos0" style="@style/PositionItem" android:text="0" />
+                <TextView android:id="@+id/tvPos1" style="@style/PositionItem" android:text="1" />
+                <TextView android:id="@+id/tvPos2" style="@style/PositionItem" android:text="2" />
+                <TextView android:id="@+id/tvPos3" style="@style/PositionItem" android:text="3" />
+                <TextView android:id="@+id/tvPos4" style="@style/PositionItem" android:text="4" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/layoutPositionRow2"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:orientation="horizontal"
+                android:weightSum="5"
+                android:layout_marginBottom="12dp">
+
+                <TextView android:id="@+id/tvPos5" style="@style/PositionItem" android:text="5" />
+                <TextView android:id="@+id/tvPos6" style="@style/PositionItem" android:text="6" />
+                <TextView android:id="@+id/tvPos7" style="@style/PositionItem" android:text="7" />
+                <TextView android:id="@+id/tvPos8" style="@style/PositionItem" android:text="8" />
+                <TextView android:id="@+id/tvPos9" style="@style/PositionItem" android:text="9" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="2"
+                android:layout_marginBottom="6dp">
+
+                <Button
+                    android:id="@+id/btnCalibrate"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:text="@string/calibrate_btn"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:backgroundTint="#E91E63"
+                    android:layout_marginEnd="8dp" />
+
+                <Button
+                    android:id="@+id/btnClearCalibration"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:text="@string/clear_calibration"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:backgroundTint="#607D8B" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#333344"
+            android:layout_marginVertical="16dp" />
+
+        <!-- Wheel Recognition Section -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_background"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/wheel_recognition"
+                android:textColor="#00BCD4"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:paddingBottom="12dp" />
+
+            <TextView
+                android:id="@+id/tvRecognizedResult"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/recognized_no_data"
+                android:textColor="#9E9E9E"
+                android:textSize="16sp"
+                android:gravity="center" />
+        </LinearLayout>
+
+        <!-- Divider -->
+
         <!-- NFC Section -->
         <LinearLayout
             android:layout_width="match_parent"

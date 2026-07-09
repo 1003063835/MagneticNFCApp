@@ -42,4 +42,14 @@
     <string name="write_aar_failed_error">写入失败：%s</string>
     <string name="write_aar_timeout">写入超时，请重试</string>
     <string name="write_aar_cancel">取消写入</string>
+
+    <string name="wheel_calibration">轮盘校准</string>
+    <string name="position_label">位置</string>
+    <string name="calibrate_btn">录入</string>
+    <string name="clear_calibration">清除</string>
+    <string name="calibrated_count">已录入: %d/10</string>
+    <string name="position_not_calibrated">-</string>
+    <string name="wheel_recognition">位置识别</string>
+    <string name="recognized_position">当前位置: %d (距离 %.1f)</string>
+    <string name="recognized_no_data">请先录入校准数据</string>
 </resources>

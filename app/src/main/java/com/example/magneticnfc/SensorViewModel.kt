@@ -17,7 +17,19 @@ data class MagneticData(
     val total: Float = 0f
 )
 
+data class RecognitionResult(
+    val position: Int,
+    val distance: Float
+)
+
 class SensorViewModel : ViewModel() {
+
+    data class CalibrationPoint(
+        val x: Float,
+        val y: Float,
+        val z: Float,
+        val count: Int
+    )
 
     private val _magneticData = MutableLiveData(MagneticData())
     val magneticData: LiveData<MagneticData> = _magneticData
@@ -27,6 +39,14 @@ class SensorViewModel : ViewModel() {
 
     private val _nfcMessage = MutableLiveData("")
     val nfcMessage: LiveData<String> = _nfcMessage
+
+    private val calibrationData = mutableMapOf<Int, CalibrationPoint>()
+
+    private val _calibratedPositions = MutableLiveData<Set<Int>>(emptySet())
+    val calibratedPositions: LiveData<Set<Int>> = _calibratedPositions
+
+    private val _recognizedPosition = MutableLiveData<RecognitionResult?>()
+    val recognizedPosition: LiveData<RecognitionResult?> = _recognizedPosition
 
     private var sensorManager: SensorManager? = null
     private var magneticSensor: Sensor? = null
@@ -38,7 +58,9 @@ class SensorViewModel : ViewModel() {
                 val y = event.values[1]
                 val z = event.values[2]
                 val total = sqrt(x * x + y * y + z * z)
-                _magneticData.postValue(MagneticData(x, y, z, total))
+                val data = MagneticData(x, y, z, total)
+                _magneticData.postValue(data)
+                recognize(data)
             }
         }
 
@@ -71,6 +93,49 @@ class SensorViewModel : ViewModel() {
 
     fun clearNfcMessage() {
         _nfcMessage.postValue("")
+    }
+
+    fun calibrate(position: Int, data: MagneticData) {
+        val existing = calibrationData[position]
+        if (existing != null) {
+            val newCount = existing.count + 1
+            val newX = (existing.x * existing.count + data.x) / newCount
+            val newY = (existing.y * existing.count + data.y) / newCount
+            val newZ = (existing.z * existing.count + data.z) / newCount
+            calibrationData[position] = CalibrationPoint(newX, newY, newZ, newCount)
+        } else {
+            calibrationData[position] = CalibrationPoint(data.x, data.y, data.z, 1)
+        }
+        _calibratedPositions.postValue(calibrationData.keys.toSet())
+        recognize(data)
+    }
+
+    private fun recognize(data: MagneticData) {
+        if (calibrationData.isEmpty()) {
+            _recognizedPosition.postValue(null)
+            return
+        }
+        var bestPosition = -1
+        var bestDistance = Float.MAX_VALUE
+        for ((pos, cp) in calibrationData) {
+            val dx = data.x - cp.x
+            val dy = data.y - cp.y
+            val dz = data.z - cp.z
+            val dist = sqrt(dx * dx + dy * dy + dz * dz)
+            if (dist < bestDistance) {
+                bestDistance = dist
+                bestPosition = pos
+            }
+        }
+        if (bestPosition >= 0) {
+            _recognizedPosition.postValue(RecognitionResult(bestPosition, bestDistance))
+        }
+    }
+
+    fun clearCalibration() {
+        calibrationData.clear()
+        _calibratedPositions.postValue(emptySet())
+        _recognizedPosition.postValue(null)
     }
 
     override fun onCleared() {
