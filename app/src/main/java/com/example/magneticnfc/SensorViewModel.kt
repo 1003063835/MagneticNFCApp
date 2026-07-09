@@ -1,13 +1,15 @@
 package com.example.magneticnfc
 
+import android.app.Application
 import android.content.Context
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
+import org.json.JSONObject
 import kotlin.math.sqrt
 
 data class MagneticData(
@@ -22,7 +24,7 @@ data class RecognitionResult(
     val distance: Float
 )
 
-class SensorViewModel : ViewModel() {
+class SensorViewModel(application: Application) : AndroidViewModel(application) {
 
     data class CalibrationPoint(
         val x: Float,
@@ -30,6 +32,8 @@ class SensorViewModel : ViewModel() {
         val z: Float,
         val count: Int
     )
+
+    private val prefs = application.getSharedPreferences("wheel_calib", Context.MODE_PRIVATE)
 
     private val _magneticData = MutableLiveData(MagneticData())
     val magneticData: LiveData<MagneticData> = _magneticData
@@ -47,6 +51,10 @@ class SensorViewModel : ViewModel() {
 
     private val _recognizedPosition = MutableLiveData<RecognitionResult?>()
     val recognizedPosition: LiveData<RecognitionResult?> = _recognizedPosition
+
+    init {
+        loadCalibration()
+    }
 
     private var sensorManager: SensorManager? = null
     private var magneticSensor: Sensor? = null
@@ -107,6 +115,7 @@ class SensorViewModel : ViewModel() {
             calibrationData[position] = CalibrationPoint(data.x, data.y, data.z, 1)
         }
         _calibratedPositions.postValue(calibrationData.keys.toSet())
+        saveCalibration()
         recognize(data)
     }
 
@@ -136,6 +145,38 @@ class SensorViewModel : ViewModel() {
         calibrationData.clear()
         _calibratedPositions.postValue(emptySet())
         _recognizedPosition.postValue(null)
+        prefs.edit().remove("data").apply()
+    }
+
+    private fun loadCalibration() {
+        try {
+            val json = prefs.getString("data", null) ?: return
+            val root = JSONObject(json)
+            for (key in root.keys()) {
+                val pos = key.toInt()
+                val obj = root.getJSONObject(key)
+                calibrationData[pos] = CalibrationPoint(
+                    obj.getDouble("x").toFloat(),
+                    obj.getDouble("y").toFloat(),
+                    obj.getDouble("z").toFloat(),
+                    obj.getInt("count")
+                )
+            }
+            _calibratedPositions.postValue(calibrationData.keys.toSet())
+        } catch (_: Exception) {}
+    }
+
+    private fun saveCalibration() {
+        val root = JSONObject()
+        for ((pos, cp) in calibrationData) {
+            val obj = JSONObject()
+            obj.put("x", cp.x.toDouble())
+            obj.put("y", cp.y.toDouble())
+            obj.put("z", cp.z.toDouble())
+            obj.put("count", cp.count)
+            root.put(pos.toString(), obj)
+        }
+        prefs.edit().putString("data", root.toString()).apply()
     }
 
     override fun onCleared() {
