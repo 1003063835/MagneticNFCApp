@@ -489,6 +489,16 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
             updatePositionStyles()
         }
 
+        binding.btnExport.setOnClickListener {
+            val json = viewModel.getExportJson()
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/json"
+                putExtra(Intent.EXTRA_TEXT, json)
+                putExtra(Intent.EXTRA_SUBJECT, getString(R.string.export_subject))
+            }
+            startActivity(Intent.createChooser(shareIntent, getString(R.string.export_btn)))
+        }
+
         viewModel.calibratedPositions.observe(this) { positions ->
             binding.tvCalibratedCount.text = getString(R.string.calibrated_count, positions.size)
             updatePositionStyles()

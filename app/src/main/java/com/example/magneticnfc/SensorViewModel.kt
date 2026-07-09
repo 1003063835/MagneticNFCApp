@@ -148,6 +148,21 @@ class SensorViewModel(application: Application) : AndroidViewModel(application) 
         prefs.edit().remove("data").apply()
     }
 
+    fun getExportJson(): String {
+        val root = JSONObject()
+        root.put("app", "MagneticNFCApp")
+        root.put("version", 1)
+        for ((pos, cp) in calibrationData) {
+            val obj = JSONObject()
+            obj.put("x", cp.x.toDouble())
+            obj.put("y", cp.y.toDouble())
+            obj.put("z", cp.z.toDouble())
+            obj.put("count", cp.count)
+            root.put(pos.toString(), obj)
+        }
+        return root.toString(2)
+    }
+
     private fun loadCalibration() {
         try {
             val json = prefs.getString("data", null) ?: return

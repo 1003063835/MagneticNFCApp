@@ -52,4 +52,6 @@
     <string name="wheel_recognition">位置识别</string>
     <string name="recognized_position">当前位置: %d (距离 %.1f)</string>
     <string name="recognized_no_data">请先录入校准数据</string>
+    <string name="export_btn">导出</string>
+    <string name="export_subject">磁力NFC探测器-校准数据</string>
 </resources>
