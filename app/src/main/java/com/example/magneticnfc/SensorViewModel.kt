@@ -52,6 +52,9 @@ class SensorViewModel(application: Application) : AndroidViewModel(application) 
     private val _recognizedPosition = MutableLiveData<RecognitionResult?>()
     val recognizedPosition: LiveData<RecognitionResult?> = _recognizedPosition
 
+    private val _sensorMaxRange = MutableLiveData(200f)
+    val sensorMaxRange: LiveData<Float> = _sensorMaxRange
+
     init {
         loadCalibration()
     }
@@ -84,10 +87,12 @@ class SensorViewModel(application: Application) : AndroidViewModel(application) 
             return
         }
 
+        _sensorMaxRange.postValue(magneticSensor!!.maximumRange)
+
         sensorManager?.registerListener(
             sensorEventListener,
             magneticSensor,
-            SensorManager.SENSOR_DELAY_UI
+            SensorManager.SENSOR_DELAY_GAME
         )
     }
 

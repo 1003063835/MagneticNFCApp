@@ -95,21 +95,26 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
             binding.tvMagZ.text = getString(R.string.mag_z_value, data.z)
             binding.tvMagTotal.text = getString(R.string.mag_total_value, data.total)
 
+            val maxRange = viewModel.sensorMaxRange.value ?: 200f
             binding.tvStrength.text = when {
-                data.total < 10f -> getString(R.string.strength_very_weak)
-                data.total < 30f -> getString(R.string.strength_weak)
-                data.total < 60f -> getString(R.string.strength_normal)
-                data.total < 100f -> getString(R.string.strength_strong)
+                data.total / maxRange < 0.05f -> getString(R.string.strength_very_weak)
+                data.total / maxRange < 0.15f -> getString(R.string.strength_weak)
+                data.total / maxRange < 0.30f -> getString(R.string.strength_normal)
+                data.total / maxRange < 0.50f -> getString(R.string.strength_strong)
                 else -> getString(R.string.strength_very_strong)
             }
 
-            binding.progressBar.progress = data.total.coerceIn(0f, 200f).toInt()
+            binding.progressBar.progress = data.total.toInt().coerceIn(0, maxRange.toInt().coerceAtLeast(1))
         }
 
         viewModel.nfcMessage.observe(this) { message ->
             if (message.isNotEmpty()) {
                 binding.tvNfcInfo.text = message
             }
+        }
+
+        viewModel.sensorMaxRange.observe(this) { maxRange ->
+            binding.progressBar.max = maxRange.toInt().coerceAtLeast(1)
         }
     }
 
