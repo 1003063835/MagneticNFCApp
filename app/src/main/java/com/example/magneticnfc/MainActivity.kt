@@ -466,9 +466,6 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
             binding.btnWriteAar.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#03A9F4"))
             binding.tvWriteStatus.text = reason
             binding.tvWriteStatus.setTextColor(Color.parseColor("#F44336"))
-            Handler(Looper.getMainLooper()).postDelayed({
-                binding.tvWriteStatus.visibility = View.GONE
-            }, 6000)
         }
     }
 
