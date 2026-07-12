@@ -404,14 +404,7 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
 
     private fun writeAarToTag(tag: Tag) {
         val aarRecord = NdefRecord.createApplicationRecord(packageName)
-        val textBytes = "\u78C1\u529B NFC \u63A2\u6D4B\u5668".toByteArray(Charsets.UTF_8)
-        val langBytes = "zh".toByteArray(Charsets.US_ASCII)
-        val textPayload = ByteArray(1 + langBytes.size + textBytes.size)
-        textPayload[0] = langBytes.size.toByte()
-        System.arraycopy(langBytes, 0, textPayload, 1, langBytes.size)
-        System.arraycopy(textBytes, 0, textPayload, 1 + langBytes.size, textBytes.size)
-        val textRecord = NdefRecord(NdefRecord.TNF_WELL_KNOWN, NdefRecord.RTD_TEXT, ByteArray(0), textPayload)
-        val ndefMessage = NdefMessage(arrayOf(aarRecord, textRecord))
+        val ndefMessage = NdefMessage(arrayOf(aarRecord))
 
         try {
             val ndef = Ndef.get(tag)
