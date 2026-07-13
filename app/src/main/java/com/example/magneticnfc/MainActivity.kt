@@ -64,31 +64,6 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
             NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK
     }
 
-    private val pendingIntent by lazy {
-        PendingIntent.getActivity(
-            this, 0,
-            Intent(this, javaClass).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
-            PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0
-        )
-    }
-
-    private val nfcIntentFilters by lazy {
-        arrayOf(
-            IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED),
-            IntentFilter(NfcAdapter.ACTION_TECH_DISCOVERED),
-            IntentFilter(NfcAdapter.ACTION_TAG_DISCOVERED)
-        )
-    }
-
-    private val nfcTechLists by lazy {
-        arrayOf(
-            arrayOf(NfcA::class.java.name),
-            arrayOf(MifareUltralight::class.java.name),
-            arrayOf(NdefFormatable::class.java.name),
-            arrayOf(Ndef::class.java.name)
-        )
-    }
-
     @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
