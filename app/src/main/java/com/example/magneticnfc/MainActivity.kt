@@ -1,9 +1,7 @@
 package com.example.magneticnfc
 
 import android.annotation.SuppressLint
-import android.app.PendingIntent
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -42,12 +40,12 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
     private var nfcAdapter: NfcAdapter? = null
     private val dateFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
     private var isWritingMode = false
+    private var isWritingTag = false
     private val writeTimeoutHandler = Handler(Looper.getMainLooper())
     private val writeTimeoutRunnable = Runnable {
         isWritingMode = false
+        isWritingTag = false
         runOnUiThread {
-            nfcAdapter?.disableForegroundDispatch(this@MainActivity)
-            reEnableReaderMode()
             binding.btnWriteAar.text = getString(R.string.write_aar_btn)
             binding.btnWriteAar.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#03A9F4"))
             binding.tvWriteStatus.text = getString(R.string.write_aar_timeout)
@@ -177,27 +175,14 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
     override fun onPause() {
         super.onPause()
         nfcAdapter?.disableReaderMode(this)
-        nfcAdapter?.disableForegroundDispatch(this)
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        if (!isWritingMode) return
-
-        val tag: Tag? = if (Build.VERSION.SDK_INT >= 33) {
-            intent.getParcelableExtra(NfcAdapter.EXTRA_TAG, Tag::class.java)
-        } else {
-            @Suppress("DEPRECATION")
-            intent.getParcelableExtra(NfcAdapter.EXTRA_TAG)
-        }
-        if (tag != null) {
-            binding.tvWriteStatus.text = "检测到标签，正在写入..."
-            writeAarToTag(tag)
-        }
     }
 
     override fun onTagDiscovered(tag: Tag) {
-        if (isWritingMode) {
+        if (isWritingMode && !isWritingTag) {
+            isWritingTag = true
+            runOnUiThread {
+                binding.tvWriteStatus.text = "检测到标签，正在写入..."
+            }
             writeAarToTag(tag)
             return
         }
@@ -431,8 +416,7 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
 
     private fun enterWriteMode() {
         isWritingMode = true
-        nfcAdapter?.disableReaderMode(this)
-        nfcAdapter?.enableForegroundDispatch(this, pendingIntent, nfcIntentFilters, nfcTechLists)
+        isWritingTag = false
         binding.btnWriteAar.text = getString(R.string.write_aar_cancel)
         binding.btnWriteAar.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FF5722"))
         binding.tvWriteStatus.text = getString(R.string.write_aar_waiting)
@@ -443,22 +427,11 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
 
     private fun cancelWriteMode() {
         isWritingMode = false
+        isWritingTag = false
         writeTimeoutHandler.removeCallbacks(writeTimeoutRunnable)
-        nfcAdapter?.disableForegroundDispatch(this)
-        reEnableReaderMode()
         binding.btnWriteAar.text = getString(R.string.write_aar_btn)
         binding.btnWriteAar.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#03A9F4"))
         binding.tvWriteStatus.visibility = View.GONE
-    }
-
-    private fun reEnableReaderMode() {
-        nfcAdapter?.let { adapter ->
-            if (adapter.isEnabled) {
-                val options = Bundle()
-                options.putInt(NfcAdapter.EXTRA_READER_PRESENCE_CHECK_DELAY, 5000)
-                adapter.enableReaderMode(this, this, READER_FLAGS, options)
-            }
-        }
     }
 
     private fun writeAarToTag(tag: Tag) {
@@ -495,13 +468,12 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
 
     private fun onWriteSuccess() {
         isWritingMode = false
+        isWritingTag = false
         val vibrator = getSystemService(Vibrator::class.java)
         vibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
 
         runOnUiThread {
             writeTimeoutHandler.removeCallbacks(writeTimeoutRunnable)
-            nfcAdapter?.disableForegroundDispatch(this@MainActivity)
-            reEnableReaderMode()
             binding.btnWriteAar.text = getString(R.string.write_aar_btn)
             binding.btnWriteAar.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#03A9F4"))
             binding.tvWriteStatus.text = getString(R.string.write_aar_success)
@@ -514,10 +486,9 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
 
     private fun onWriteFailed(reason: String) {
         isWritingMode = false
+        isWritingTag = false
         runOnUiThread {
             writeTimeoutHandler.removeCallbacks(writeTimeoutRunnable)
-            nfcAdapter?.disableForegroundDispatch(this@MainActivity)
-            reEnableReaderMode()
             binding.btnWriteAar.text = getString(R.string.write_aar_btn)
             binding.btnWriteAar.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#03A9F4"))
             binding.tvWriteStatus.text = reason
