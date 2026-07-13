@@ -425,20 +425,60 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
                     ndef.close()
                     onWriteFailed(getString(R.string.write_aar_failed_not_ndef))
                 }
-            } else {
-                val formatable = NdefFormatable.get(tag)
-                if (formatable != null) {
-                    formatable.connect()
-                    formatable.format(ndefMessage)
-                    formatable.close()
-                    onWriteSuccess()
-                } else {
-                    onWriteFailed(getString(R.string.write_aar_failed_not_ndef))
-                }
+                return
             }
+
+            val formatable = NdefFormatable.get(tag)
+            if (formatable != null) {
+                formatable.connect()
+                formatable.format(ndefMessage)
+                formatable.close()
+                onWriteSuccess()
+                return
+            }
+
+            val mfu = MifareUltralight.get(tag)
+            if (mfu != null) {
+                writeToMifareUltralight(mfu, ndefMessage)
+                return
+            }
+
+            onWriteFailed(getString(R.string.write_aar_failed_not_ndef))
         } catch (e: Exception) {
             onWriteFailed(getString(R.string.write_aar_failed_error, e.message ?: ""))
         }
+    }
+
+    private fun writeToMifareUltralight(mfu: MifareUltralight, ndefMessage: NdefMessage) {
+        mfu.connect()
+        val ndefBytes = ndefMessage.toByteArray()
+        val tlvLen = 2 + ndefBytes.size + 1
+        if (tlvLen > 48) {
+            mfu.close()
+            onWriteFailed("标签空间不足 (需要${tlvLen}B, 可用48B)")
+            return
+        }
+
+        // Write CC to page 3
+        mfu.writePage(3, byteArrayOf(0xE1.toByte(), 0x10.toByte(), 0x06.toByte(), 0x00.toByte()))
+
+        // Build TLV: [03] [length] [ndef data] [FE]
+        val tlv = ByteArray(tlvLen)
+        tlv[0] = 0x03.toByte()
+        tlv[1] = ndefBytes.size.toByte()
+        System.arraycopy(ndefBytes, 0, tlv, 2, ndefBytes.size)
+        tlv[tlvLen - 1] = 0xFE.toByte()
+
+        // Write data page by page starting from page 4
+        for (i in tlv.indices step 4) {
+            val page = 4 + i / 4
+            val chunk = ByteArray(4)
+            val copyLen = minOf(4, tlv.size - i)
+            System.arraycopy(tlv, i, chunk, 0, copyLen)
+            mfu.writePage(page, chunk)
+        }
+        mfu.close()
+        onWriteSuccess()
     }
 
     private fun onWriteSuccess() {
