@@ -82,6 +82,15 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
         )
     }
 
+    private val nfcTechLists by lazy {
+        arrayOf(
+            arrayOf(NfcA::class.java.name),
+            arrayOf(MifareUltralight::class.java.name),
+            arrayOf(NdefFormatable::class.java.name),
+            arrayOf(Ndef::class.java.name)
+        )
+    }
+
     @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -423,7 +432,7 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
     private fun enterWriteMode() {
         isWritingMode = true
         nfcAdapter?.disableReaderMode(this)
-        nfcAdapter?.enableForegroundDispatch(this, pendingIntent, nfcIntentFilters, null)
+        nfcAdapter?.enableForegroundDispatch(this, pendingIntent, nfcIntentFilters, nfcTechLists)
         binding.btnWriteAar.text = getString(R.string.write_aar_cancel)
         binding.btnWriteAar.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FF5722"))
         binding.tvWriteStatus.text = getString(R.string.write_aar_waiting)
