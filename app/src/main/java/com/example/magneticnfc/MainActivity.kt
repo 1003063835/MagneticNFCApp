@@ -3,6 +3,7 @@ package com.example.magneticnfc
 import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -45,6 +46,8 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
     private val writeTimeoutRunnable = Runnable {
         isWritingMode = false
         runOnUiThread {
+            nfcAdapter?.disableForegroundDispatch(this@MainActivity)
+            reEnableReaderMode()
             binding.btnWriteAar.text = getString(R.string.write_aar_btn)
             binding.btnWriteAar.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#03A9F4"))
             binding.tvWriteStatus.text = getString(R.string.write_aar_timeout)
@@ -61,6 +64,22 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
             NfcAdapter.FLAG_READER_NFC_F or
             NfcAdapter.FLAG_READER_NFC_V or
             NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK
+    }
+
+    private val pendingIntent by lazy {
+        PendingIntent.getActivity(
+            this, 0,
+            Intent(this, javaClass).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0
+        )
+    }
+
+    private val nfcIntentFilters by lazy {
+        arrayOf(
+            IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED),
+            IntentFilter(NfcAdapter.ACTION_TECH_DISCOVERED),
+            IntentFilter(NfcAdapter.ACTION_TAG_DISCOVERED)
+        )
     }
 
     @SuppressLint("SetTextI18n")
@@ -149,6 +168,23 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
     override fun onPause() {
         super.onPause()
         nfcAdapter?.disableReaderMode(this)
+        nfcAdapter?.disableForegroundDispatch(this)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (!isWritingMode) return
+
+        val tag: Tag? = if (Build.VERSION.SDK_INT >= 33) {
+            intent.getParcelableExtra(NfcAdapter.EXTRA_TAG, Tag::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra(NfcAdapter.EXTRA_TAG)
+        }
+        if (tag != null) {
+            binding.tvWriteStatus.text = "检测到标签，正在写入..."
+            writeAarToTag(tag)
+        }
     }
 
     override fun onTagDiscovered(tag: Tag) {
@@ -386,6 +422,8 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
 
     private fun enterWriteMode() {
         isWritingMode = true
+        nfcAdapter?.disableReaderMode(this)
+        nfcAdapter?.enableForegroundDispatch(this, pendingIntent, nfcIntentFilters, null)
         binding.btnWriteAar.text = getString(R.string.write_aar_cancel)
         binding.btnWriteAar.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FF5722"))
         binding.tvWriteStatus.text = getString(R.string.write_aar_waiting)
@@ -397,9 +435,21 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
     private fun cancelWriteMode() {
         isWritingMode = false
         writeTimeoutHandler.removeCallbacks(writeTimeoutRunnable)
+        nfcAdapter?.disableForegroundDispatch(this)
+        reEnableReaderMode()
         binding.btnWriteAar.text = getString(R.string.write_aar_btn)
         binding.btnWriteAar.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#03A9F4"))
         binding.tvWriteStatus.visibility = View.GONE
+    }
+
+    private fun reEnableReaderMode() {
+        nfcAdapter?.let { adapter ->
+            if (adapter.isEnabled) {
+                val options = Bundle()
+                options.putInt(NfcAdapter.EXTRA_READER_PRESENCE_CHECK_DELAY, 5000)
+                adapter.enableReaderMode(this, this, READER_FLAGS, options)
+            }
+        }
     }
 
     private fun writeAarToTag(tag: Tag) {
@@ -441,6 +491,8 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
 
         runOnUiThread {
             writeTimeoutHandler.removeCallbacks(writeTimeoutRunnable)
+            nfcAdapter?.disableForegroundDispatch(this@MainActivity)
+            reEnableReaderMode()
             binding.btnWriteAar.text = getString(R.string.write_aar_btn)
             binding.btnWriteAar.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#03A9F4"))
             binding.tvWriteStatus.text = getString(R.string.write_aar_success)
@@ -455,6 +507,8 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
         isWritingMode = false
         runOnUiThread {
             writeTimeoutHandler.removeCallbacks(writeTimeoutRunnable)
+            nfcAdapter?.disableForegroundDispatch(this@MainActivity)
+            reEnableReaderMode()
             binding.btnWriteAar.text = getString(R.string.write_aar_btn)
             binding.btnWriteAar.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#03A9F4"))
             binding.tvWriteStatus.text = reason
